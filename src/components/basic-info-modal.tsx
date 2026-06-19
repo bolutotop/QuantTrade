@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { X, ExternalLink, Building2, Newspaper, Wallet } from 'lucide-react';
+import { X, ExternalLink, Building2, Newspaper, Wallet, ChartCandlestick } from 'lucide-react';
 import { cn, fmt, pnlColor, toSinaSymbol } from '@/lib/utils';
 import type { Quote } from './market-view';
 import SentimentPanel from './sentiment-panel';
 import PortfolioTabPanel from './portfolio-tab-panel';
+import KLineChartView from './kline-chart-view';
 
 // =============================================================================
 // BasicInfoModal —— 个股公司基本面弹窗
@@ -13,7 +14,11 @@ import PortfolioTabPanel from './portfolio-tab-panel';
 
 type BasicInfo = {
   code: string;
+  market?: 'SH' | 'SZ' | 'BJ' | 'HK' | 'US';
+  _source?: string;
+  // 通用字段
   companyName?: string;
+  shortName?: string;
   englishName?: string;
   industry?: string;
   mainBusiness?: string;
@@ -37,6 +42,19 @@ type BasicInfo = {
   discloseUrl?: string;
   underwriter?: string;
   recommender?: string;
+  // 港股专属
+  isinCode?: string;
+  hkShares?: string;
+  registerPlace?: string;
+  chairman?: string;
+  accountFirm?: string;
+  legalAdviser?: string;
+  mainBank?: string;
+  sharesRegAddress?: string;
+  yearSettleDay?: string;
+  empNum?: string;
+  currency?: string;
+  tradeUnit?: string;
   error?: string;
 };
 
@@ -45,7 +63,7 @@ export type BasicInfoModalProps = {
   onClose: () => void;
 };
 
-type ModalTab = 'basic' | 'sentiment' | 'trade';
+type ModalTab = 'kline' | 'basic' | 'sentiment' | 'trade';
 
 export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps) {
   const [basic, setBasic] = useState<BasicInfo | null>(null);
@@ -66,13 +84,13 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
     if (detail) setTab('sentiment');
   }, [detail?.code]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 拉取基本面
-  const fetchBasic = useCallback(async (code: string) => {
+  // 拉取基本面：用 symbol（带 sh/sz/bj/hk 前缀），让后端识别市场
+  const fetchBasic = useCallback(async (sym: string) => {
     setLoading(true);
     setBasic(null);
     setError(null);
     try {
-      const res = await fetch(`/api/basic?code=${code}`, { cache: 'no-store' });
+      const res = await fetch(`/api/basic?symbol=${encodeURIComponent(sym)}`, { cache: 'no-store' });
       const json: BasicInfo = await res.json();
       if (!res.ok || json.error) {
         setError(json.error || `HTTP ${res.status}`);
@@ -88,12 +106,17 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
 
   useEffect(() => {
     if (!detail) return;
-    fetchBasic(detail.code);
+    fetchBasic(detail.symbol || detail.code);
   }, [detail, fetchBasic]);
 
   if (!detail) return null;
 
-  const sinaPage = `http://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpInfo/stockid/${toSinaSymbol(detail.code)}.phtml`;
+  // 底部"查看原页"链接：A 股 -> 新浪 vCI_CorpInfo；港股 -> 东财 F10；其它 -> 不展示
+  const isHK = /^hk/i.test(detail.symbol || '');
+  const sourcePage = isHK
+    ? `https://emweb.securities.eastmoney.com/PC_HKF10/CompanyProfile/Index?type=web&code=${detail.code}`
+    : `http://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpInfo/stockid/${toSinaSymbol(detail.code)}.phtml`;
+  const sourceLabel = basic?._source || (isHK ? '东方财富 港股 F10' : '新浪财经 公司概况');
   const colorClass = pnlColor(detail.change);
 
   return (
@@ -141,6 +164,7 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
         <div className="px-5 pt-2 border-b border-slate-200/70 flex items-center gap-1 bg-white">
           {[
             { key: 'sentiment' as ModalTab, label: '资讯·舆情', icon: Newspaper },
+            { key: 'kline' as ModalTab, label: 'K 线图', icon: ChartCandlestick },
             { key: 'trade' as ModalTab, label: '交易·持仓', icon: Wallet },
             { key: 'basic' as ModalTab, label: '公司基本面', icon: Building2 },
           ].map((t) => {
@@ -165,9 +189,17 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
         </div>
 
         {/* 内容 */}
-        <div className="overflow-y-auto px-5 py-4 text-sm text-slate-700 leading-relaxed flex-1">
+        <div className={cn(
+          'text-sm text-slate-700 leading-relaxed flex-1',
+          // K 线 tab 不要 overflow-y-auto！否则滚动条出现/消失会动态改变容器宽度，
+          // 引起 KLineChart 的 visibleBarCount 在 init 瞬间被算成 0。
+          tab === 'kline' ? 'px-3 py-2 overflow-hidden' : 'px-5 py-4 overflow-y-auto',
+        )}>
           {tab === 'sentiment' && (
             <SentimentPanel code={detail.code} name={detail.name} />
+          )}
+          {tab === 'kline' && (
+            <KLineChartView symbol={detail.symbol} height={460} />
           )}
           {tab === 'trade' && (
             <PortfolioTabPanel
@@ -207,6 +239,7 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
                 <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-[13px]">
                   <Row label="公司全称" value={basic.companyName} />
                   <Row label="英文名称" value={basic.englishName} />
+                  <Row label="股票简称" value={basic.shortName} />
                   <Row label="所属行业" value={basic.industry} />
                   <Row label="上市市场" value={basic.exchange} />
                   <Row label="上市日期" value={basic.ipoDate} />
@@ -214,9 +247,21 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
                   <Row label="主承销商" value={basic.underwriter} />
                   <Row label="成立日期" value={basic.foundDate} />
                   <Row label="注册资本" value={basic.registerCapital} />
+                  <Row label="注册地" value={basic.registerPlace} />
                   <Row label="机构类型" value={basic.orgType} />
                   <Row label="组织形式" value={basic.orgForm} />
+                  <Row label="董事长" value={basic.chairman} />
                   <Row label="董事会秘书" value={basic.secretary} />
+                  <Row label="会计师事务所" value={basic.accountFirm} />
+                  <Row label="法律顾问" value={basic.legalAdviser} />
+                  <Row label="主要往来银行" value={basic.mainBank} />
+                  <Row label="股份过户处" value={basic.sharesRegAddress} />
+                  <Row label="员工人数" value={basic.empNum} />
+                  <Row label="发行总股数" value={basic.hkShares} />
+                  <Row label="ISIN 代码" value={basic.isinCode} />
+                  <Row label="计价货币" value={basic.currency} />
+                  <Row label="每手股数" value={basic.tradeUnit} />
+                  <Row label="财年截止日" value={basic.yearSettleDay} />
                   <Row label="公司电话" value={basic.phone} />
                   <Row label="公司传真" value={basic.fax} />
                   <Row label="电子邮箱" value={basic.email} />
@@ -260,9 +305,9 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
         </div>
 
         <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 bg-slate-50/40">
-          <span>数据：新浪财经 公司概况</span>
+          <span>数据：{sourceLabel}</span>
           <a
-            href={sinaPage}
+            href={sourcePage}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-blue-500 hover:underline font-bold"
