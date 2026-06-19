@@ -39,3 +39,31 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# QuantTrade local debug / scratch files
+_t_*
+_demo*
+_inspect_*
+_ping_*
+_test_*
+_wait_*
+_start_*
+basic_test.json
+corp_*.html
+corp_cells.txt
+.dev.log
+.codebuddy/
+
+# 模拟交易数据库（服务器侧持久化，不入库）
+.data/
+
+# sentiment-service (Python 子服务) 运行时
+sentiment-service/.venv/
+sentiment-service/__pycache__/
+sentiment-service/**/__pycache__/
+sentiment-service/data/
+sentiment-service/vendor/
+sentiment-service/.env
+
+
+

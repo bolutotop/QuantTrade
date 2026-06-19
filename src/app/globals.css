@@ -12,15 +12,49 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* iOS 底部安全区（兼容刘海/底部 Home Indicator） */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* === 弹窗动画 === */
+@keyframes qt-slide-in-bottom {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes qt-zoom-in {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes qt-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 默认（移动端）：从底部滑入 */
+.qt-modal-anim {
+  animation: qt-slide-in-bottom 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* PC（≥sm）：缩放进入 */
+@media (min-width: 640px) {
+  .qt-modal-anim {
+    animation: qt-zoom-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+.qt-fade-in {
+  animation: qt-fade-in 0.18s ease-out both;
 }
