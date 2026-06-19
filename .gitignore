@@ -65,5 +65,14 @@ sentiment-service/data/
 sentiment-service/vendor/
 sentiment-service/.env
 
+# 部署本地配置（含 webhook secret 等）
+deploy/ecosystem.local.cjs
+deploy/*.local.*
+.data/deploy.log
+.data/notify.log
+.data/logs/
+
+
+
 
 
