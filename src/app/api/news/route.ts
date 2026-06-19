@@ -29,7 +29,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 type NewsType = 'news' | 'announce' | 'discuss';
-type SourceKey = 'sina' | 'eastmoney' | 'xueqiu' | 'cninfo';
+type SourceKey = 'sina' | 'eastmoney' | 'xueqiu' | 'cninfo' | 'akshare';
 
 export type NewsItem = {
   id: string;
@@ -233,11 +233,18 @@ type XueqiuStatus = {
   source?: string;
 };
 async function fetchXueqiu(code: string, limit: number): Promise<NewsItem[]> {
-  const c = code.replace(/[^0-9]/g, '');
-  let prefix = 'SZ';
-  if (c.startsWith('6') || c.startsWith('9')) prefix = 'SH';
-  else if (c.startsWith('8') || c.startsWith('4')) prefix = 'BJ';
-  const symbolId = `${prefix}${pad(c, 6)}`;
+  // 支持 A 股 (sh/sz/bj+6) 和港股 (hk+5)
+  let symbolId: string;
+  if (/^hk/i.test(code)) {
+    const c = code.replace(/[^0-9]/g, '').padStart(5, '0');
+    symbolId = `HK${c}`;
+  } else {
+    const c = code.replace(/[^0-9]/g, '');
+    let prefix = 'SZ';
+    if (c.startsWith('6') || c.startsWith('9')) prefix = 'SH';
+    else if (c.startsWith('8') || c.startsWith('4')) prefix = 'BJ';
+    symbolId = `${prefix}${pad(c, 6)}`;
+  }
 
   // 先 GET 首页取 cookie
   let cookie = '';
@@ -262,8 +269,16 @@ async function fetchXueqiu(code: string, limit: number): Promise<NewsItem[]> {
       Cookie: cookie,
     },
   }, 6000);
-  if (!r.ok) throw new Error(`xueqiu http ${r.status}`);
-  const j: { list?: XueqiuStatus[] } = await r.json();
+  if (!r.ok) return [];
+  const text = await r.text();
+  // 雪球 WAF 反爬时返回 HTML（含 <textarea id="renderData">），直接降级为空
+  if (!text.startsWith('{') && !text.startsWith('[')) return [];
+  let j: { list?: XueqiuStatus[] };
+  try {
+    j = JSON.parse(text);
+  } catch {
+    return [];
+  }
   const list = j?.list ?? [];
   return list.slice(0, limit).map((it) => {
     const text = stripHtml(it.text ?? it.description ?? '');
@@ -371,6 +386,75 @@ async function fetchHot(code: string, name?: string): Promise<Hot> {
   return out;
 }
 
+// -------------------- 东财搜索（按关键词；港股复用） --------------------
+async function fetchEastmoneyByKeyword(keyword: string, limit: number): Promise<NewsItem[]> {
+  const out: NewsItem[] = [];
+  if (!keyword) return out;
+  try {
+    const newsUrl = `https://search-api-web.eastmoney.com/search/jsonp?cb=cb&param=${encodeURIComponent(
+      JSON.stringify({
+        uid: '',
+        keyword,
+        type: ['cmsArticleWebOld'],
+        client: 'web',
+        clientType: 'web',
+        clientVersion: 'curr',
+        param: { cmsArticleWebOld: { searchScope: 'default', sort: 'time', pageIndex: 1, pageSize: Math.min(20, limit), preTag: '', postTag: '' } },
+      })
+    )}&_=${Date.now()}`;
+    const r = await safeFetch(newsUrl, { headers: { Referer: 'https://so.eastmoney.com/' } }, 6000);
+    if (!r.ok) return out;
+    const text = await r.text();
+    const m = text.match(/^\s*[\w$]+\s*\((.*)\)\s*;?\s*$/s);
+    if (!m) return out;
+    const j = JSON.parse(m[1]);
+    const list: Array<{ url: string; title: string; date: string; mediaName?: string; content?: string }>
+      = j?.result?.cmsArticleWebOld ?? [];
+    for (const it of list) {
+      const ts = parseTime(it.date);
+      out.push({
+        id: 'em:news:' + it.url,
+        source: 'eastmoney',
+        type: 'news',
+        title: stripHtml(it.title),
+        summary: it.content ? stripHtml(it.content).slice(0, 120) : undefined,
+        url: it.url,
+        time: fmtTime(ts),
+        ts,
+        author: it.mediaName,
+      });
+    }
+  } catch {
+    /* ignore */
+  }
+  return out.slice(0, limit);
+}
+
+// -------------------- AKShare 子服务（可选；覆盖最广的开源新闻源） --------------------
+//
+// AKShare 是 GitHub 22k★ 的开源财经数据库，覆盖 A 股/港股/美股新闻、公告、研报、F10。
+// 我们让它和 sentiment-service 一样独立部署（Python + FastAPI 网关），
+// 这边只是反代客户端：env AKSHARE_SERVICE_URL 没设或不可达时返回空数组。
+//
+// 子服务最小契约：
+//   GET ${base}/api/news?code=hk09626&name=哔哩哔哩&limit=20
+//   返回 { items: NewsItem[] }
+//
+// 部署文档：见仓库 akshare-service/README.md（与 sentiment-service 同款骨架）
+async function fetchAkshare(code: string, name: string | undefined, limit: number): Promise<NewsItem[]> {
+  const base = process.env.AKSHARE_SERVICE_URL || '';
+  if (!base) return [];
+  try {
+    const url = `${base.replace(/\/$/, '')}/api/news?code=${encodeURIComponent(code)}&name=${encodeURIComponent(name ?? '')}&limit=${limit}`;
+    const r = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
+    if (!r.ok) return [];
+    const j = await r.json() as { items?: NewsItem[] };
+    return Array.isArray(j?.items) ? j.items.map((it) => ({ ...it, source: 'akshare' as SourceKey })) : [];
+  } catch {
+    return [];
+  }
+}
+
 // -------------------- 主入口 --------------------
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -381,16 +465,64 @@ export async function GET(req: NextRequest) {
   const wantSocial = sp.get('social') !== '0';
 
   if (!code) return Response.json({ error: 'code is required' }, { status: 400 });
-  // 港股：当前资讯/公告/雪球/巨潮 实现仅适配 A 股，先返回空 + 提示
+
+  // 港股分支：跑专属流水线
   if (HK_RE.test(code)) {
-    return Response.json({
-      code,
-      name: name ?? '',
-      items: [],
-      hot: {},
-      hint: '港股资讯/公告聚合暂未接入（A 股专属源）。可改为接入"AAStocks"或"东方财富港股新闻"，TODO。',
-    }, { headers: { 'Cache-Control': 'no-store' } });
+    // 关键词组合：① "09626.HK" 命中港股代码精准报道；② 股票名称兜底
+    const hkCode = code.replace(/^hk/i, '').padStart(5, '0');
+    const kwCode = `${hkCode}.HK`;
+    const tasks: Array<Promise<{ key: SourceKey; items?: NewsItem[]; error?: string }>> = [
+      fetchXueqiu(code, limit)
+        .then((items) => ({ key: 'xueqiu' as SourceKey, items }))
+        .catch((e: unknown) => ({ key: 'xueqiu' as SourceKey, error: e instanceof Error ? e.message : String(e) })),
+      fetchEastmoneyByKeyword(kwCode, limit)
+        .then((items) => ({ key: 'eastmoney' as SourceKey, items }))
+        .catch((e: unknown) => ({ key: 'eastmoney' as SourceKey, error: e instanceof Error ? e.message : String(e) })),
+      // 名称兜底：通常和 code.HK 部分重叠，最后会按 url 去重
+      ...(name
+        ? [fetchEastmoneyByKeyword(name, Math.min(20, limit))
+            .then((items) => ({ key: 'eastmoney' as SourceKey, items }))
+            .catch(() => ({ key: 'eastmoney' as SourceKey, items: [] as NewsItem[] }))]
+        : []),
+      // AKShare 子服务（可选，未配置则直接返回空，不影响）
+      fetchAkshare(code, name, limit)
+        .then((items) => ({ key: 'akshare' as SourceKey, items }))
+        .catch(() => ({ key: 'akshare' as SourceKey, items: [] as NewsItem[] })),
+    ];
+    const hotTask = wantSocial ? fetchHot(code, name).catch(() => ({} as Hot)) : Promise.resolve({} as Hot);
+    try {
+      const [results, hot] = await Promise.all([Promise.all(tasks), hotTask]);
+      const merged: NewsItem[] = [];
+      const errors: Record<string, string> = {};
+      for (const r of results) {
+        if (r.error) errors[r.key] = r.error;
+        if (r.items) merged.push(...r.items);
+      }
+      const seen = new Set<string>();
+      const dedup = merged.filter((it) => {
+        const k = it.url || it.id;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      dedup.sort((a, b) => b.ts - a.ts);
+      return new Response(JSON.stringify({
+        code,
+        name: name ?? '',
+        items: dedup.slice(0, limit),
+        hot,
+        errors: Object.keys(errors).length ? errors : undefined,
+        hint: dedup.length === 0 ? '港股资讯目前来自雪球讨论 + 东方财富搜索；如均为空可能是关键词冷门或上游限流。公告/巨潮源仅适配 A 股，已自动跳过。' : undefined,
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+      });
+    } catch (e) {
+      const { error, status } = toUpstreamError(e);
+      return Response.json({ error, code }, { status });
+    }
   }
+
   if (!CODE_RE.test(code)) return Response.json({ error: 'invalid code' }, { status: 400 });
 
   const sources: SourceKey[] = sourcesParam

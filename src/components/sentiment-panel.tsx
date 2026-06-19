@@ -50,6 +50,7 @@ type NewsResp = {
   hot?: Hot;
   errors?: Record<string, string>;
   error?: string;
+  hint?: string;          // 数据源不支持时的友好提示（如港股资讯）
 };
 
 type SocialPlatform = 'bilibili' | 'xhs' | 'douyin' | 'weibo' | 'kuaishou' | 'zhihu';
@@ -193,7 +194,7 @@ export default function SentimentPanel({ code, name }: SentimentPanelProps) {
       news: items.filter((i) => i.type === 'news').length,
       announce: items.filter((i) => i.type === 'announce').length,
       xueqiu: items.filter((i) => i.source === 'xueqiu').length,
-      social: social?.items.length ?? 0,
+      social: social?.items?.length ?? 0,
     };
   }, [news, social]);
 
@@ -264,9 +265,13 @@ export default function SentimentPanel({ code, name }: SentimentPanelProps) {
       {tab === 'social' ? (
         <SocialList loading={loadingSocial} data={social} />
       ) : tab === 'hot' ? (
-        <HotPanel hot={news?.hot} />
+        <HotPanel hot={news?.hot} hint={news?.hint} />
       ) : (
-        <NewsList loading={loadingNews && !news} items={filtered} />
+        <NewsList
+          loading={loadingNews && !news}
+          items={filtered}
+          hint={news?.hint && filtered.length === 0 ? news.hint : undefined}
+        />
       )}
     </div>
   );
@@ -274,11 +279,22 @@ export default function SentimentPanel({ code, name }: SentimentPanelProps) {
 
 // -------------------------- 子组件 --------------------------
 
-function NewsList({ items, loading }: { items: NewsItem[]; loading: boolean }) {
+function NewsList({ items, loading, hint }: { items: NewsItem[]; loading: boolean; hint?: string }) {
   if (loading) {
     return <div className="py-8 text-center text-slate-400 text-sm">加载中…</div>;
   }
   if (!items.length) {
+    if (hint) {
+      return (
+        <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/40 p-4 space-y-1.5">
+          <div className="text-sm font-bold text-amber-800 inline-flex items-center gap-1.5">
+            <AlertCircle className="w-4 h-4" />
+            该数据源暂不支持当前股票
+          </div>
+          <p className="text-xs text-amber-700 leading-relaxed">{hint}</p>
+        </div>
+      );
+    }
     return <div className="py-8 text-center text-slate-400 text-sm">暂无数据</div>;
   }
   return (
@@ -349,13 +365,13 @@ function SocialList({ data, loading }: { data: SocialResp | null; loading: boole
     );
   }
 
-  if (!data.items.length) {
+  if (!data.items?.length) {
     return <div className="py-8 text-center text-slate-400 text-sm">暂无社媒数据</div>;
   }
 
   return (
     <ul className="space-y-2">
-      {data.items.map((it) => (
+      {(data.items ?? []).map((it) => (
         <li key={it.id}>
           <a
             href={it.url}
@@ -401,8 +417,19 @@ function SocialList({ data, loading }: { data: SocialResp | null; loading: boole
   );
 }
 
-function HotPanel({ hot }: { hot?: Hot }) {
+function HotPanel({ hot, hint }: { hot?: Hot; hint?: string }) {
   if (!hot || (!hot.weiboHits && !hot.baiduRelated)) {
+    if (hint) {
+      return (
+        <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/40 p-4 space-y-1.5">
+          <div className="text-sm font-bold text-amber-800 inline-flex items-center gap-1.5">
+            <AlertCircle className="w-4 h-4" />
+            该数据源暂不支持当前股票
+          </div>
+          <p className="text-xs text-amber-700 leading-relaxed">{hint}</p>
+        </div>
+      );
+    }
     return <div className="py-8 text-center text-slate-400 text-sm">暂无热度数据</div>;
   }
   return (
