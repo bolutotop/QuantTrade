@@ -1,0 +1,11 @@
+# sentiment-service 自身忽略
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+vendor/
+
+# MediaCrawler 自身的输出
+**/browser_data/
+**/store/

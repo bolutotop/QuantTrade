@@ -1,0 +1,13 @@
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+python-dotenv>=1.0.0
+apscheduler>=3.10.0
+snownlp>=0.12.3
+httpx>=0.27.0
+
+# MediaCrawler 自身的依赖另装：
+#   pip install -r vendor/MediaCrawler/requirements.txt
+#
+# 这里只列 sentiment-service 自己用的最小集合，
+# 避免与 MediaCrawler 的版本约束打架。
