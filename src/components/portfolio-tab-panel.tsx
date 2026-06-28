@@ -1,11 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Wallet, History as HistoryIcon, Edit3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, History as HistoryIcon, Edit3, BarChart3 } from 'lucide-react';
 import { cn, fmt, pnlColor } from '@/lib/utils';
 import { usePortfolio, useTrades } from '@/lib/use-portfolio';
 import TradeDialog from './trade-dialog';
 import AdjustDialog from './adjust-dialog';
+import TradeStatsPanel from './trade-stats-panel';
 
 // =============================================================================
 // PortfolioTabPanel —— 在 BasicInfoModal 中嵌入的"交易/持仓"Tab
@@ -14,6 +15,7 @@ import AdjustDialog from './adjust-dialog';
 //   - 显示该股票当前持仓（股数 / 可卖 / 成本 / 浮盈）
 //   - 一键买入 / 卖出 → 弹 TradeDialog
 //   - 列出该股票最近 30 笔自家交易流水
+//   - "交易统计" sub-tab：买卖量 / 频率 / 盈亏分布 / 个股活跃度
 // =============================================================================
 
 export type PortfolioTabPanelProps = {
@@ -23,12 +25,15 @@ export type PortfolioTabPanelProps = {
   livePrice?: number;
 };
 
+type SubTab = 'trade' | 'stats';
+
 export default function PortfolioTabPanel({ symbol, code, name, livePrice }: PortfolioTabPanelProps) {
   const { data, refresh } = usePortfolio();
   const { items: trades, refresh: refreshTrades } = useTrades(symbol, 50);
 
   const [dialog, setDialog] = useState<null | 'buy' | 'sell'>(null);
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [subTab, setSubTab] = useState<SubTab>('trade');
 
   const pos = useMemo(
     () => data?.positions.find((p) => p.symbol === symbol),
@@ -46,6 +51,32 @@ export default function PortfolioTabPanel({ symbol, code, name, livePrice }: Por
 
   return (
     <div className="space-y-4">
+      {/* Sub-tab：持仓交易 / 交易统计 */}
+      <div className="flex items-center gap-1 -mb-2">
+        {([
+          { key: 'trade' as SubTab, label: '持仓交易', icon: Wallet },
+          { key: 'stats' as SubTab, label: '交易统计', icon: BarChart3 },
+        ]).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setSubTab(t.key)}
+            className={cn(
+              'inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded border transition-colors',
+              subTab === t.key
+                ? 'text-blue-700 border-blue-300 bg-blue-50'
+                : 'text-slate-500 border-slate-200 hover:bg-slate-50',
+            )}
+          >
+            <t.icon className="w-3 h-3" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === 'stats' ? (
+        <TradeStatsPanel />
+      ) : (
+      <>
       {/* 持仓概览卡 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
         <Stat label="持仓" value={posShares ? `${posShares} 股` : '—'} hint={posShares ? `${posShares / 100} 手` : undefined} />
@@ -191,6 +222,8 @@ export default function PortfolioTabPanel({ symbol, code, name, livePrice }: Por
         onClose={() => setAdjustOpen(false)}
         onDone={() => { void refresh(); void refreshTrades(); }}
       />
+      </>
+    )}
     </div>
   );
 }
