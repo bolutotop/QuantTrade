@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { X, ExternalLink, Building2, Newspaper, Wallet, ChartCandlestick } from 'lucide-react';
+import { X, ExternalLink, Building2, Newspaper, Wallet, ChartCandlestick, Zap } from 'lucide-react';
 import { cn, fmt, pnlColor, toSinaSymbol } from '@/lib/utils';
 import type { Quote } from './market-view';
 import SentimentPanel from './sentiment-panel';
 import PortfolioTabPanel from './portfolio-tab-panel';
 import KLineChartView from './kline-chart-view';
+import AnalysisPanel from './analysis-panel';
 
 // =============================================================================
 // BasicInfoModal —— 个股公司基本面弹窗
@@ -63,7 +64,7 @@ export type BasicInfoModalProps = {
   onClose: () => void;
 };
 
-type ModalTab = 'kline' | 'basic' | 'sentiment' | 'trade';
+type ModalTab = 'kline' | 'analysis' | 'basic' | 'sentiment' | 'trade';
 
 export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps) {
   const [basic, setBasic] = useState<BasicInfo | null>(null);
@@ -163,6 +164,7 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
         {/* 主 Tab：资讯 / 交易 / 基本面 */}
         <div className="px-5 pt-2 border-b border-slate-200/70 flex items-center gap-1 bg-white">
           {[
+            { key: 'analysis' as ModalTab, label: '涨跌分析', icon: Zap },
             { key: 'sentiment' as ModalTab, label: '资讯·舆情', icon: Newspaper },
             { key: 'kline' as ModalTab, label: 'K 线图', icon: ChartCandlestick },
             { key: 'trade' as ModalTab, label: '交易·持仓', icon: Wallet },
@@ -197,6 +199,9 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
         )}>
           {tab === 'sentiment' && (
             <SentimentPanel code={detail.code} name={detail.name} />
+          )}
+          {tab === 'analysis' && (
+            <AnalysisPanel symbol={detail.symbol} code={detail.code} name={detail.name} />
           )}
           {tab === 'kline' && (
             <KLineChartView symbol={detail.symbol} height={460} />
