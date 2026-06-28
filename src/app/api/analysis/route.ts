@@ -17,7 +17,7 @@
 // =============================================================================
 
 import { NextRequest } from 'next/server';
-import { safeFetch } from '@/lib/upstream';
+import { safeFetch, toUpstreamError } from '@/lib/upstream';
 import { parseSymbol } from '@/lib/markets';
 
 export const dynamic = 'force-dynamic';
@@ -124,6 +124,9 @@ interface KLineItem {
   turnoverRate?: number;
 }
 
+// 内部 API 基地址（避免硬编码 localhost:3001）
+const INTERNAL_API = process.env.INTERNAL_API_URL || 'http://127.0.0.1:3001';
+
 async function fetchKlines(symbol: string): Promise<Array<{
   date: string;
   open: number;
@@ -137,7 +140,7 @@ async function fetchKlines(symbol: string): Promise<Array<{
   change: number;
   turnoverRate: number;
 }>> {
-  const url = `http://127.0.0.1:3001/api/kline?symbol=${encodeURIComponent(symbol)}&period=day&adjust=qfq&limit=5`;
+  const url = `${INTERNAL_API}/api/kline?symbol=${encodeURIComponent(symbol)}&period=day&adjust=qfq&limit=5`;
   const res = await safeFetch(
     url,
     { headers: { Accept: 'application/json' } },
@@ -179,7 +182,7 @@ type NewsRawItem = { title: string; summary?: string; source?: string; time?: st
 async function fetchNews(code: string, name: string): Promise<NewsRawItem[]> {
   try {
     const res = await safeFetch(
-      `http://127.0.0.1:3001/api/news?code=${code}&name=${encodeURIComponent(name)}&limit=15`,
+      `${INTERNAL_API}/api/news?code=${code}&name=${encodeURIComponent(name)}&limit=15`,
       { headers: { Accept: 'application/json' } },
       10000,
     );
@@ -195,7 +198,7 @@ async function fetchNews(code: string, name: string): Promise<NewsRawItem[]> {
 async function fetchIntradayKlines(
   symbol: string,
 ): Promise<Array<{ ts: number; open: number; close: number; high: number; low: number }>> {
-  const url = `http://127.0.0.1:3001/api/kline?symbol=${encodeURIComponent(symbol)}&period=1m&adjust=qfq&limit=240`;
+  const url = `${INTERNAL_API}/api/kline?symbol=${encodeURIComponent(symbol)}&period=1m&adjust=qfq&limit=240`;
   const res = await safeFetch(url, { headers: { Accept: 'application/json' } }, 12000);
   if (!res.ok) return [];
   const json = (await res.json()) as { items?: KLineItem[]; error?: string };
@@ -638,7 +641,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return Response.json({ error: msg }, { status: 502 });
+    const { error, status } = toUpstreamError(e);
+    return Response.json({ error }, { status });
   }
 }

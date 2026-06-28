@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getDb, prep } from '@/lib/db';
+import { toUpstreamError } from '@/lib/upstream';
 
 // =============================================================================
 // /api/portfolio/stats — 交易统计（买卖量 / 频率 / 盈亏分布 / 个股活跃度）
@@ -265,9 +266,7 @@ export async function GET(req: NextRequest) {
       recentTrades,
     });
   } catch (e) {
-    return Response.json(
-      { error: e instanceof Error ? e.message : String(e) },
-      { status: 500 },
-    );
+    const { error, status } = toUpstreamError(e);
+    return Response.json({ error }, { status });
   }
 }

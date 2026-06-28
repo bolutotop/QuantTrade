@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { buildAccountView, listPositions } from '@/lib/portfolio';
 import { fetchLivePriceMap } from '@/lib/live-price';
+import { toUpstreamError } from '@/lib/upstream';
 
 // =============================================================================
 // /api/portfolio
@@ -23,6 +24,7 @@ export async function GET(_req: NextRequest) {
       headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
     });
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+    const { error, status } = toUpstreamError(e);
+    return Response.json({ error }, { status });
   }
 }

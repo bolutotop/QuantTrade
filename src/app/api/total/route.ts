@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { safeFetch, toUpstreamError } from '@/lib/upstream';
 import { fetchHKRanking, type HKNode } from '@/lib/hk-ranking';
+import { VALID_NODE_SET as VALID_NODES, HK_NODE_SET as HK_NODES } from '@/lib/types';
 
 // /api/total?node=hs_a -> { total: 5527 }
 // A 股：新浪 Market_Center.getHQNodeStockCount
@@ -8,12 +9,6 @@ import { fetchHKRanking, type HKNode } from '@/lib/hk-ranking';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-
-const VALID_NODES = new Set([
-  'hs_a', 'hs_kcb', 'hs_cyb', 'sh_a', 'sz_a', 'bj_a', 'new_cb',
-  'hk_all', 'hk_main', 'hk_gem', 'hk_blue', 'hk_red', 'hk_h',
-]);
-const HK_NODES = new Set(['hk_all', 'hk_main', 'hk_gem', 'hk_blue', 'hk_red', 'hk_h']);
 
 export async function GET(req: NextRequest) {
   const node = req.nextUrl.searchParams.get('node') ?? 'hs_a';
@@ -33,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const r = await safeFetch(
-      `http://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeStockCount?node=${node}`,
+      `https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeStockCount?node=${node}`,
       {
         headers: {
           'User-Agent': 'Mozilla/5.0 QuantTrade/0.1',

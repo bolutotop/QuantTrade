@@ -101,7 +101,7 @@ async function fetchABasic(code: string, market: Market): Promise<BasicInfo> {
   // 沪市 sh / 深市 sz / 北交所 bj
   const prefix = market === 'SH' ? 'sh' : market === 'BJ' ? 'bj' : 'sz';
   const stockid = prefix + code;
-  const url = `http://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpInfo/stockid/${stockid}.phtml`;
+  const url = `https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpInfo/stockid/${stockid}.phtml`;
   const html = await fetchGbkText(url, undefined, 6000);
   const parsed = parseSinaCorpInfo(html);
   if (Object.keys(parsed).length === 0) {

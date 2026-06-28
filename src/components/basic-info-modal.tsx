@@ -116,7 +116,7 @@ export default function BasicInfoModal({ detail, onClose }: BasicInfoModalProps)
   const isHK = /^hk/i.test(detail.symbol || '');
   const sourcePage = isHK
     ? `https://emweb.securities.eastmoney.com/PC_HKF10/CompanyProfile/Index?type=web&code=${detail.code}`
-    : `http://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpInfo/stockid/${toSinaSymbol(detail.code)}.phtml`;
+    : `https://vip.stock.finance.sina.com.cn/corp/go.php/vCI_CorpInfo/stockid/${toSinaSymbol(detail.code)}.phtml`;
   const sourceLabel = basic?._source || (isHK ? '东方财富 港股 F10' : '新浪财经 公司概况');
   const colorClass = pnlColor(detail.change);
 

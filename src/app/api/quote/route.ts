@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { fetchQuotes } from '@/lib/quote-providers';
+import { toUpstreamError } from '@/lib/upstream';
 
 // =============================================================================
 // /api/quote?code=sh000001,sh600519,hk00700,...
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 502 });
+    const { error, status } = toUpstreamError(e);
+    return Response.json({ error }, { status });
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { safeFetch, toUpstreamError } from '@/lib/upstream';
 import { fetchHKRanking, type HKNode } from '@/lib/hk-ranking';
+import { VALID_NODE_SET as VALID_NODES, HK_NODE_SET as HK_NODES } from '@/lib/types';
 
 // =============================================================================
 // /api/rank — 全市场实时排行榜
@@ -85,19 +86,6 @@ function toQuote(r: SinaRow): Quote {
 }
 
 const VALID_SORTS = new Set(['changepercent', 'trade', 'amount', 'volume', 'turnoverratio', 'mktcap']);
-const VALID_NODES = new Set([
-  'hs_a',    // 沪深 A 股
-  'hs_kcb',  // 科创板
-  'hs_cyb',  // 创业板
-  'sh_a',    // 沪市 A 股
-  'sz_a',    // 深市 A 股
-  'bj_a',    // 北交所
-  'new_cb',  // 可转债
-  // 港股
-  'hk_all', 'hk_main', 'hk_gem', 'hk_blue', 'hk_red', 'hk_h',
-]);
-
-const HK_NODES = new Set(['hk_all', 'hk_main', 'hk_gem', 'hk_blue', 'hk_red', 'hk_h']);
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
@@ -140,7 +128,7 @@ export async function GET(req: NextRequest) {
   }
 
   // ---------------- A 股分支（保持原逻辑） ----------------
-  const url = new URL('http://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData');
+  const url = new URL('https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData');
   url.searchParams.set('page', String(page));
   url.searchParams.set('num', String(pageSize));
   url.searchParams.set('sort', sort);
