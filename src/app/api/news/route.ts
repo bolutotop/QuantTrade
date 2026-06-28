@@ -505,14 +505,37 @@ export async function GET(req: NextRequest) {
         seen.add(k);
         return true;
       });
-      dedup.sort((a, b) => b.ts - a.ts);
+
+      // 相关性过滤：东财关键词搜索可能命中文章正文（我们拿不到），
+      //   导致标题无关的新闻混入。只按标题 + code 判断，不依赖 summary。
+      //   港股代码短（5位），容易和日期/金额混淆，所以 code 匹配用 '.hk' 后缀。
+      const nameWords = name
+        ? name.replace(/[-·•()（）\s-]/g, '')
+        : '';
+      const relevant = dedup.filter((it) => {
+        // 雪球个股源天然相关
+        if (it.source === 'xueqiu') return true;
+        const title = (it.title || '').toLowerCase();
+        // 代码匹配：00386 或 00386.hk
+        if (title.includes(hkCode) || title.includes(`${hkCode}.hk`)) return true;
+        // 名称匹配：标题中至少出现名称的 2 个相邻字
+        if (nameWords.length >= 2) {
+          for (let i = 0; i < nameWords.length - 1; i++) {
+            if (title.includes(nameWords.slice(i, i + 2))) return true;
+          }
+        }
+        return false;
+      });
+
+      relevant.sort((a, b) => b.ts - a.ts);
       return new Response(JSON.stringify({
         code,
         name: name ?? '',
-        items: dedup.slice(0, limit),
+        items: relevant.slice(0, limit),
         hot,
         errors: Object.keys(errors).length ? errors : undefined,
-        hint: dedup.length === 0 ? '港股资讯目前来自雪球讨论 + 东方财富搜索；如均为空可能是关键词冷门或上游限流。公告/巨潮源仅适配 A 股，已自动跳过。' : undefined,
+        filteredCount: dedup.length > relevant.length ? dedup.length - relevant.length : 0,
+        hint: relevant.length === 0 ? '港股资讯目前来自雪球讨论 + 东方财富搜索；如均为空可能是关键词冷门或上游限流。公告/巨潮源仅适配 A 股，已自动跳过。' : undefined,
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
