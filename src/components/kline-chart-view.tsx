@@ -10,7 +10,7 @@ import {
   type Chart,
   type KLineData,
 } from 'klinecharts';
-import { cn } from '@/lib/utils';
+import { cn, pnlColor, fmtBig } from '@/lib/utils';
 import {
   Loader2,
   BarChart3,
@@ -142,6 +142,8 @@ type ApiResp = {
     close: number;
     volume: number;
     turnover: number;
+    changePct?: number;
+    turnoverRate?: number;
   }>;
   error?: string;
 };
@@ -163,6 +165,10 @@ export default function KLineChartView({ symbol, height = 460 }: KLineChartViewP
   const [count, setCount] = useState(0);
   const [source, setSource] = useState<string>('');
   const [fullscreen, setFullscreen] = useState(false);
+  // 最后一根 K 线的市场活跃度数据
+  const [lastBar, setLastBar] = useState<{
+    volume: number; turnover: number; changePct: number; turnoverRate: number; high: number; low: number;
+  } | null>(null);
   // chartReady=true 触发 load effect。用 state 而非 ref 是关键。
   const [chartReady, setChartReady] = useState(false);
 
@@ -266,6 +272,19 @@ export default function KLineChartView({ symbol, height = 460 }: KLineChartViewP
 
       setCount(data.length);
       setSource(json.source ?? '');
+
+      // 记录最后一根 K 线的市场活跃度数据（成交量 / 换手率 / 涨跌幅等）
+      if (json.items.length > 0) {
+        const last = json.items[json.items.length - 1];
+        setLastBar({
+          volume: last.volume,
+          turnover: last.turnover,
+          changePct: last.changePct ?? 0,
+          turnoverRate: last.turnoverRate ?? 0,
+          high: last.high,
+          low: last.low,
+        });
+      }
 
       // 多次 resize + scrollToTimestamp 兜底，覆盖：
       //   - 浏览器 layout pass 滞后（rAF）
@@ -456,6 +475,34 @@ export default function KLineChartView({ symbol, height = 460 }: KLineChartViewP
           </button>
         </div>
       </div>
+
+      {/* 市场活跃度条：成交量 / 成交额 / 换手率 / 振幅 */}
+      {lastBar && (
+        <div className="flex items-center gap-3 flex-wrap px-1 py-1.5 text-[10px] font-mono bg-slate-50/50 border-b border-slate-100">
+          <span className="inline-flex items-center gap-1">
+            <span className="text-slate-400">成交量</span>
+            <span className="text-slate-700 font-bold">{fmtBig(lastBar.volume / 100)}</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="text-slate-400">成交额</span>
+            <span className="text-slate-700 font-bold">{fmtBig(lastBar.turnover)}</span>
+          </span>
+          <span className={cn('inline-flex items-center gap-1 font-bold', pnlColor(lastBar.changePct))}>
+            <span className="text-slate-400 font-normal">涨跌</span>
+            {lastBar.changePct > 0 ? '+' : ''}{lastBar.changePct.toFixed(2)}%
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="text-slate-400">换手率</span>
+            <span className="text-slate-700 font-bold">{lastBar.turnoverRate.toFixed(2)}%</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="text-slate-400">振幅</span>
+            <span className="text-slate-700 font-bold">
+              {lastBar.low > 0 ? (((lastBar.high - lastBar.low) / lastBar.low) * 100).toFixed(2) : '—'}%
+            </span>
+          </span>
+        </div>
+      )}
 
       {err && (
         <div className="m-1 py-2 px-3 rounded bg-red-50 border border-red-200 text-red-700 text-xs">
