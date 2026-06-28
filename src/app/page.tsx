@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Star, LineChart, Search, Wallet, MessageSquare } from 'lucide-react';
+import { Star, LineChart, Search, Wallet, MessageSquare, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWatchlist } from '@/lib/use-watchlist';
 import MarketView, { type Quote } from '@/components/market-view';
@@ -81,6 +81,13 @@ export default function HomePage() {
             <span className="text-[9px] px-1 rounded bg-amber-100 text-amber-700 font-bold">模拟</span>
           </Link>
           <Link
+            href="/market"
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-bold rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+          >
+            <BarChart3 className="w-4 h-4 opacity-80" strokeWidth={2.5} />
+            <span className="flex-1 text-left">大盘</span>
+          </Link>
+          <Link
             href="/issues"
             className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-bold rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
           >
@@ -133,6 +140,15 @@ export default function HomePage() {
             <Wallet className="w-[22px] h-[22px]" strokeWidth={2} />
           </div>
           <span className="text-[10px] sm:text-xs mt-0.5 font-medium text-slate-500">持仓</span>
+        </Link>
+        <Link
+          href="/market"
+          className="flex flex-col items-center justify-center flex-1 h-full pt-1"
+        >
+          <div className="p-1 rounded-full text-slate-400">
+            <BarChart3 className="w-[22px] h-[22px]" strokeWidth={2} />
+          </div>
+          <span className="text-[10px] sm:text-xs mt-0.5 font-medium text-slate-500">大盘</span>
         </Link>
       </nav>
 
