@@ -80,6 +80,20 @@ export function isHKSymbol(symbol: string): boolean {
   return /^hk/i.test(symbol);
 }
 
+/** 将内部 code 映射为东方财富 push2 标准 secid */
+export function resolveEmSecid(code: string): string {
+  const info = parseSymbol(code);
+  if (!info) return `1.${code}`; // 兜底
+  switch (info.market) {
+    case 'SH': return `1.${info.code}`;
+    case 'SZ': return `0.${info.code}`;
+    case 'BJ': return `0.${info.code}`;
+    case 'HK': return `116.${info.code}`;
+    case 'US': return `105.${info.code}`;
+    default: return `1.${info.code}`;
+  }
+}
+
 /** 港股一手对应的股数（不同股票不同；这里给一个保守默认 100，前端可让用户自定义） */
 export const HK_DEFAULT_LOT = 100;
 /** A 股一手 = 100 股 */

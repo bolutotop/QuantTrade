@@ -166,6 +166,24 @@ export const HK_LIST: HKEntry[] = [
   { code: '06190', name: '北京汽车', bucket: 'others' },
   { code: '02333', name: '长城汽车', bucket: 'others' },
   { code: '00489', name: '东风集团股份', bucket: 'others' },
+
+  // 港股 ETF（恒生科技/恒生指数/国企/主题）
+  { code: '07552', name: '南方东英恒生科技指数ETF', bucket: 'tech' },
+  { code: '07272', name: '华夏恒生科技指数ETF', bucket: 'tech' },
+  { code: '03033', name: '南方恒生科技ETF', bucket: 'tech' },
+  { code: '02800', name: '盈富基金', bucket: 'hsi' },
+  { code: '02828', name: '恒生中国企业', bucket: 'hsi' },
+  { code: '07200', name: '南方东英恒生指数ETF', bucket: 'hsi' },
+  { code: '02801', name: '安硕中国ETF', bucket: 'hsi' },
+  { code: '02833', name: '恒指ETF', bucket: 'hsi' },
+  { code: '03067', name: '安硕恒生科技ETF', bucket: 'tech' },
+  { code: '02823', name: '安硕A50', bucket: 'hsi' },
+  { code: '03060', name: '惠理价值ETF', bucket: 'hsi' },
+  { code: '03045', name: '恒生医疗保健ETF', bucket: 'biotech' },
+  { code: '03081', name: '价值中国ETF', bucket: 'finance' },
+  { code: '03110', name: 'GX恒生高股息率', bucket: 'finance' },
+  { code: '09067', name: '安硕恒生科技ETF-U', bucket: 'tech' },
+  { code: '09072', name: '华夏恒生科技ETF-U', bucket: 'tech' },
 ];
 
 // 去重

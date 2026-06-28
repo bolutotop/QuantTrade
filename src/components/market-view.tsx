@@ -145,7 +145,20 @@ export default function MarketView({ searchTerm, onOpenDetail, onUpdatedAtChange
   const items = data?.items ?? [];
   const totalPg = total > 0 ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : 1;
   const filtered = searchTerm.trim()
-    ? items.filter((it) => it.name.includes(searchTerm.trim()) || it.code.includes(searchTerm.trim()))
+    ? items.filter((it) => {
+        const q = searchTerm.trim().toLowerCase();
+        // 名称模糊
+        if (it.name.toLowerCase().includes(q)) return true;
+        // 代码精确
+        if (it.code.includes(q)) return true;
+        // 代码去前导零再比（港股：7552 ↔ 07552，A股：601 → 600601）
+        const strippedCode = it.code.replace(/^0+/, '');
+        const strippedQ = q.replace(/^0+/, '');
+        if (strippedCode.includes(strippedQ)) return true;
+        // symbol 带前缀（sh600519 / hk09626）
+        if (it.symbol && it.symbol.toLowerCase().includes(q)) return true;
+        return false;
+      })
     : items;
 
   const switchNode = (n: NodeKey) => { setNode(n); setPage(1); };

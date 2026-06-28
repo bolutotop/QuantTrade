@@ -129,9 +129,19 @@ export default function WatchlistView({ searchTerm, onOpenDetail, onJumpMarket }
     );
   }
 
-  // 应用搜索过滤
+  // 应用搜索过滤（支持去前导零、名称、symbol）
   const filtered = searchTerm.trim()
-    ? list.filter((i) => i.name.includes(searchTerm.trim()) || i.code.includes(searchTerm.trim()))
+    ? list.filter((i) => {
+        const q = searchTerm.trim().toLowerCase();
+        if (i.name.toLowerCase().includes(q)) return true;
+        if (i.code.includes(q)) return true;
+        // 去前导零：7552 ↔ 07552
+        const strippedCode = i.code.replace(/^0+/, '');
+        const strippedQ = q.replace(/^0+/, '');
+        if (strippedCode.includes(strippedQ)) return true;
+        if (i.symbol.toLowerCase().includes(q)) return true;
+        return false;
+      })
     : list;
 
   // 转 Quote 类型（部分字段缺失就 0）供 Modal 用
